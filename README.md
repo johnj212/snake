@@ -23,22 +23,60 @@ An enhanced Snake game implementation using Python and Pygame. Challenge yoursel
 
 ## 🚀 Installation
 
+### Quick Install (Recommended)
+
 1. Clone this repository:
 ```bash
 git clone https://github.com/johnj212/snake.git
 cd snake
 ```
 
-2. Install the required dependencies:
+2. Run the installation script for your platform:
+
+**Windows:**
+```cmd
+install.bat
+```
+
+**macOS/Linux:**
 ```bash
+./install.sh
+```
+
+The scripts will automatically:
+- Check for Python 3.x installation
+- Install pygame and dependencies
+- Verify the installation
+- Provide helpful error messages if needed
+
+### Manual Installation
+
+If you prefer manual installation:
+
+```bash
+# Make sure you have Python 3.x installed
+python3 --version
+
+# Install pygame
+pip3 install pygame
+# or
 pip install -r requirements.txt
 ```
 
 ## 🕹️ How to Play
 
-Run the game:
+### Starting the Game
+
+**Option 1: Direct launch**
 ```bash
 python main.py
+# or on some systems:
+python3 main.py
+```
+
+**Option 2: Use the launcher script** (automatically detects Python version)
+```bash
+python run_game.py
 ```
 
 ### Game Modes
