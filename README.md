@@ -2,6 +2,24 @@
 
 An enhanced Snake game implementation using Python and Pygame. Challenge yourself in single-player mode or test your skills against intelligent AI opponents in multiplayer mode!
 
+## 📸 Screenshots
+
+<div align="center">
+
+### 🎮 Main Menu
+![Game Menu](screenshots/menu.png)
+*Choose between Single Player or AI Multiplayer modes*
+
+### 🟢 Single Player Mode
+![Single Player](screenshots/single_player.png)
+*Classic Snake gameplay - grow as long as possible!*
+
+### 🔵 Multiplayer Mode (vs Computer)
+![AI Multiplayer](screenshots/multiplayer.png)
+*Compete against 3 intelligent AI snakes for food*
+
+</div>
+
 ## 🎮 Game Features
 
 ### Multiplayer Action
