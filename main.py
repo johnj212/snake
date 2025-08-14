@@ -212,6 +212,33 @@ DOWN = (0, 1)
 LEFT = (-1, 0)
 RIGHT = (1, 0)
 
+def show_menu(screen):
+    """Display the game mode selection menu"""
+    font = pygame.font.Font(None, 74)
+    medium_font = pygame.font.Font(None, 48)
+    small_font = pygame.font.Font(None, 36)
+    
+    title_text = font.render('Snake Game', True, WHITE)
+    subtitle_text = medium_font.render('Choose Game Mode', True, WHITE)
+    single_text = small_font.render('1 - Single Player (Classic)', True, GREEN)
+    ai_text = small_font.render('2 - Play Against Computer', True, BLUE)
+    quit_text = small_font.render('Q - Quit', True, GRAY)
+    
+    # Center the text
+    screen.fill(BLACK)
+    screen.blit(title_text, 
+                (WINDOW_SIZE//2 - title_text.get_width()//2, 100))
+    screen.blit(subtitle_text, 
+                (WINDOW_SIZE//2 - subtitle_text.get_width()//2, 180))
+    screen.blit(single_text, 
+                (WINDOW_SIZE//2 - single_text.get_width()//2, 250))
+    screen.blit(ai_text, 
+                (WINDOW_SIZE//2 - ai_text.get_width()//2, 290))
+    screen.blit(quit_text, 
+                (WINDOW_SIZE//2 - quit_text.get_width()//2, 350))
+    
+    pygame.display.update()
+
 def show_game_over(screen, score):
     font = pygame.font.Font(None, 74)
     small_font = pygame.font.Font(None, 36)
@@ -231,27 +258,14 @@ def show_game_over(screen, score):
                  WINDOW_SIZE//2 + 40))
     pygame.display.update()
 
-def main():
-    # Create player snake
+def single_player_mode():
+    """Classic single player Snake game"""
     player_snake = Snake()
-    
-    # Create AI snakes with different colors and positions
-    ai_snakes = [
-        ComputerSnake(BLUE, DARK_BLUE, (5, 5)),
-        ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-5, 5)),
-        ComputerSnake(PURPLE, DARK_PURPLE, (5, GRID_COUNT-5))
-    ]
-    
-    # All snakes for collision detection
-    all_snakes = [player_snake] + ai_snakes
-    
     food = Food()
-    font = pygame.font.Font(None, 24)  # Smaller font for smaller window
+    font = pygame.font.Font(None, 36)
     game_over = False
     move_counter = 0
-    ai_move_counter = 0
-    move_delay = 3  # Player snake moves every 3 frames (10 FPS movement at 30 FPS screen)
-    ai_move_delay = 4  # AI snakes move every 4 frames (~7.5 FPS, 25% slower than player)
+    move_delay = 3  # Player snake moves every 3 frames
 
     while True:
         for event in pygame.event.get():
@@ -260,12 +274,11 @@ def main():
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if game_over and event.key == pygame.K_SPACE:
-                    # Reset all snakes
                     player_snake.reset()
-                    for ai_snake in ai_snakes:
-                        ai_snake.reset()
                     food.randomize_position()
                     game_over = False
+                elif game_over and event.key == pygame.K_ESCAPE:
+                    return  # Return to menu
                 elif not game_over:
                     if event.key == pygame.K_UP and player_snake.direction != DOWN:
                         player_snake.direction = UP
@@ -275,44 +288,110 @@ def main():
                         player_snake.direction = LEFT
                     elif event.key == pygame.K_RIGHT and player_snake.direction != LEFT:
                         player_snake.direction = RIGHT
+                    elif event.key == pygame.K_ESCAPE:
+                        return  # Return to menu
 
         if not game_over:
-            # Increment move counters
+            move_counter += 1
+            if move_counter >= move_delay:
+                move_counter = 0
+                
+                if not player_snake.update():
+                    game_over = True
+                    continue
+
+                if player_snake.get_head_position() == food.position:
+                    player_snake.length += 1
+                    player_snake.score += 1
+                    food.randomize_position()
+
+        # Draw everything
+        screen.fill(BLACK)
+        player_snake.render(screen)
+        food.render(screen)
+        
+        score_text = font.render(f'Score: {player_snake.score}', True, WHITE)
+        mode_text = font.render('Single Player - ESC for menu', True, GRAY)
+        screen.blit(score_text, (10, 10))
+        screen.blit(mode_text, (10, WINDOW_SIZE - 25))
+        
+        if game_over:
+            show_game_over(screen, player_snake.score)
+
+        pygame.display.update()
+        clock.tick(30)
+
+def ai_mode():
+    """Multiplayer mode against computer snakes"""
+    player_snake = Snake()
+    ai_snakes = [
+        ComputerSnake(BLUE, DARK_BLUE, (5, 5)),
+        ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-5, 5)),
+        ComputerSnake(PURPLE, DARK_PURPLE, (5, GRID_COUNT-5))
+    ]
+    all_snakes = [player_snake] + ai_snakes
+    
+    food = Food()
+    font = pygame.font.Font(None, 24)
+    game_over = False
+    move_counter = 0
+    ai_move_counter = 0
+    move_delay = 3  # Player moves every 3 frames
+    ai_move_delay = 5  # AI moves every 5 frames (40% slower)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if game_over and event.key == pygame.K_SPACE:
+                    player_snake.reset()
+                    for ai_snake in ai_snakes:
+                        ai_snake.reset()
+                    food.randomize_position()
+                    game_over = False
+                elif game_over and event.key == pygame.K_ESCAPE:
+                    return  # Return to menu
+                elif not game_over:
+                    if event.key == pygame.K_UP and player_snake.direction != DOWN:
+                        player_snake.direction = UP
+                    elif event.key == pygame.K_DOWN and player_snake.direction != UP:
+                        player_snake.direction = DOWN
+                    elif event.key == pygame.K_LEFT and player_snake.direction != RIGHT:
+                        player_snake.direction = LEFT
+                    elif event.key == pygame.K_RIGHT and player_snake.direction != LEFT:
+                        player_snake.direction = RIGHT
+                    elif event.key == pygame.K_ESCAPE:
+                        return  # Return to menu
+
+        if not game_over:
             move_counter += 1
             ai_move_counter += 1
             
-            # Update player snake when its counter reaches delay
             player_should_move = move_counter >= move_delay
             if player_should_move:
-                move_counter = 0  # Reset player counter
-                
-                # Update player snake
+                move_counter = 0
                 if not player_snake.update_with_collision_check(all_snakes):
                     game_over = True
-                    show_game_over(screen, player_snake.score)
                     continue
             
-            # Update AI snakes when their counter reaches delay
             ai_should_move = ai_move_counter >= ai_move_delay
             if ai_should_move:
-                ai_move_counter = 0  # Reset AI counter
+                ai_move_counter = 0
                 
-                # Update AI snake directions
                 for ai_snake in ai_snakes:
                     ai_snake.ai_move(food.position, all_snakes)
                 
-                # Update AI snake positions
                 snakes_to_remove = []
                 for ai_snake in ai_snakes:
                     if not ai_snake.update_with_collision_check(all_snakes):
                         snakes_to_remove.append(ai_snake)
                 
-                # Remove dead AI snakes
                 for dead_snake in snakes_to_remove:
                     ai_snakes.remove(dead_snake)
                     all_snakes.remove(dead_snake)
                 
-                # Respawn AI snakes if they all died
                 if len(ai_snakes) == 0:
                     ai_snakes = [
                         ComputerSnake(BLUE, DARK_BLUE, (5, 5)),
@@ -321,7 +400,6 @@ def main():
                     ]
                     all_snakes = [player_snake] + ai_snakes
 
-            # Check if any snake ate the food (check after any movement)
             if player_should_move or ai_should_move:
                 for snake in all_snakes:
                     if snake.get_head_position() == food.position:
@@ -331,23 +409,44 @@ def main():
                         food.randomize_position()
                         break
 
-            # Draw everything
-            screen.fill(BLACK)
-            
-            # Render all snakes
-            for snake in all_snakes:
-                snake.render(screen)
-            
-            food.render(screen)
-            
-            # Draw score and snake count
-            score_text = font.render(f'Score: {player_snake.score}', True, WHITE)
-            snakes_text = font.render(f'AI Snakes: {len(ai_snakes)}', True, WHITE)
-            screen.blit(score_text, (10, 10))
-            screen.blit(snakes_text, (10, 30))
+        # Draw everything
+        screen.fill(BLACK)
+        for snake in all_snakes:
+            snake.render(screen)
+        food.render(screen)
+        
+        score_text = font.render(f'Score: {player_snake.score}', True, WHITE)
+        snakes_text = font.render(f'AI Snakes: {len(ai_snakes)}', True, WHITE)
+        mode_text = font.render('VS Computer - ESC for menu', True, GRAY)
+        screen.blit(score_text, (10, 10))
+        screen.blit(snakes_text, (10, 30))
+        screen.blit(mode_text, (10, WINDOW_SIZE - 25))
+        
+        if game_over:
+            show_game_over(screen, player_snake.score)
 
-            pygame.display.update()
-            clock.tick(30)  # Control game speed
+        pygame.display.update()
+        clock.tick(30)
+
+def main():
+    """Main menu and game mode selection"""
+    while True:
+        show_menu(screen)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    single_player_mode()
+                elif event.key == pygame.K_2:
+                    ai_mode()
+                elif event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
+        
+        clock.tick(30)
 
 if __name__ == '__main__':
     main() 

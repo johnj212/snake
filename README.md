@@ -1,6 +1,6 @@
-# Python Snake Game - Multiplayer Edition
+# Python Snake Game - Play Against the Computer
 
-An enhanced Snake game implementation using Python and Pygame, featuring AI-controlled opponents and smooth gameplay.
+An enhanced Snake game implementation using Python and Pygame. Challenge yourself in single-player mode or test your skills against intelligent AI opponents in multiplayer mode!
 
 ## 🎮 Game Features
 
@@ -13,7 +13,7 @@ An enhanced Snake game implementation using Python and Pygame, featuring AI-cont
 ### Enhanced Graphics & Performance
 - **Optimized Window Size**: 500x500 pixels for better visibility
 - **Smooth Animation**: 30 FPS screen refresh for fluid visuals
-- **Balanced Speed**: Player moves at ~10 FPS, AI snakes at ~7.5 FPS
+- **Balanced Speed**: Player moves at ~10 FPS, AI snakes at ~6 FPS
 - **Visual Distinction**: Different colors for each snake with darker heads
 
 ## 📋 Requirements
@@ -41,19 +41,42 @@ Run the game:
 python main.py
 ```
 
+### Game Modes
+
+Choose from two exciting game modes:
+
+#### 🟢 **1 - Single Player (Classic)**
+- Traditional Snake gameplay
+- Focus on growing as long as possible
+- Avoid walls and your own tail
+- Perfect for practicing and beating high scores
+
+#### 🔵 **2 - Play Against Computer**
+- Compete against 3 AI-controlled snakes
+- All snakes fight for the same food
+- Strategic gameplay with collision risks
+- AI snakes respawn when eliminated
+
 ### Controls
 
+- **Menu Navigation**: Press `1` for Single Player, `2` for AI Mode, `Q` to Quit
 - **Arrow Keys**: Control your green snake's direction
+- **ESC**: Return to main menu from any game mode
+- **SPACE**: Restart game after game over
 - **Objective**: Eat the red food to grow longer and increase your score
-- **Avoid**: Hitting walls, yourself, or other snakes
-- **Game Over**: Press **SPACE** to restart when you die
 
 ### Gameplay Mechanics
 
+#### Single Player Mode
+- Classic Snake rules: avoid walls and yourself
+- Unlimited play until collision
+- Score tracking for personal bests
+
+#### Multiplayer Mode (vs Computer)
 - **Multi-Snake Collisions**: Any snake hitting another snake dies
 - **AI Respawn**: Dead AI snakes automatically respawn
 - **Competitive Scoring**: Only the player earns points
-- **Strategic Advantage**: Player moves slightly faster than AI opponents
+- **Strategic Advantage**: Player moves faster than AI opponents
 
 ## ✨ Features
 
@@ -87,5 +110,5 @@ python main.py
 - **Window Size**: 500x500 pixels (25×25 grid)
 - **Frame Rate**: 30 FPS display, variable movement speeds
 - **Player Speed**: 10 moves/second
-- **AI Speed**: 7.5 moves/second
+- **AI Speed**: 6 moves/second
 - **Grid Size**: 20×20 pixel cells
