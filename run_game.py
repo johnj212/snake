@@ -43,13 +43,19 @@ def main():
             print("           Make sure to check 'Add Python to PATH' during installation")
         sys.exit(1)
     
-    print(f"🐍 Starting Snake Game with {python_cmd}...")
+    neon_mode = '--neon' in sys.argv
+
+    if neon_mode:
+        print(f"🐍 Starting Neon Snake with {python_cmd}...")
+    else:
+        print(f"🐍 Starting Snake Game with {python_cmd}...")
     print("🎮 Choose your game mode and have fun!")
     print()
-    
+
     try:
         # Run the game
-        subprocess.run([python_cmd, 'main.py'], check=True)
+        script = 'main_neon.py' if neon_mode else 'main.py'
+        subprocess.run([python_cmd, script], check=True)
     except subprocess.CalledProcessError as e:
         print(f"ERROR: Game failed to start (exit code: {e.returncode})")
         print("Make sure pygame is installed by running the install script first.")

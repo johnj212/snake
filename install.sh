@@ -62,7 +62,7 @@ echo
 
 # Install pygame
 echo -e "${YELLOW}Installing pygame...${NC}"
-if $PIP_CMD install pygame==2.5.2; then
+if $PIP_CMD install pygame==2.6.1; then
     echo -e "${GREEN}pygame installed successfully!${NC}"
 else
     echo -e "${YELLOW}WARNING: Failed to install specific pygame version, trying latest...${NC}"
@@ -91,7 +91,7 @@ echo -e "  ${GREEN}$PYTHON_CMD main.py${NC}"
 echo
 echo -e "${YELLOW}Game Features:${NC}"
 echo "  - Single Player: Classic Snake gameplay"
-echo "  - AI Mode: Play against 3 computer opponents"
+echo "  - AI Mode: Play against 2 computer opponents"
 echo "  - Balanced gameplay with strategic advantages"
 echo
 echo -e "${YELLOW}Controls:${NC}"

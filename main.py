@@ -299,6 +299,7 @@ def show_menu(screen: pygame.Surface):
     subtitle_text = medium_font.render('Choose Game Mode', True, WHITE)
     single_text = small_font.render('1 - Single Player (Classic)', True, GREEN)
     ai_text = small_font.render('2 - Play Against Computer', True, BLUE)
+    neon_text = small_font.render('3 - Neon Mode', True, (0, 229, 255))
     quit_text = small_font.render('Q - Quit', True, GRAY)
 
     # Center the text
@@ -311,8 +312,10 @@ def show_menu(screen: pygame.Surface):
                 (WINDOW_SIZE//2 - single_text.get_width()//2, 250))
     screen.blit(ai_text,
                 (WINDOW_SIZE//2 - ai_text.get_width()//2, 290))
+    screen.blit(neon_text,
+                (WINDOW_SIZE//2 - neon_text.get_width()//2, 330))
     screen.blit(quit_text,
-                (WINDOW_SIZE//2 - quit_text.get_width()//2, 350))
+                (WINDOW_SIZE//2 - quit_text.get_width()//2, 390))
 
     pygame.display.update()
 
@@ -449,14 +452,13 @@ def single_player_mode():
 def ai_mode():
     """
     Multiplayer mode with AI opponents.
-    Compete against 3 computer-controlled snakes for food.
+    Compete against 2 computer-controlled snakes for food.
     """
     # Initialize snakes
     player_snake = Snake()
     ai_snakes = [
         ComputerSnake(BLUE, DARK_BLUE, (5, 5)),
-        ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-6, 5)),
-        ComputerSnake(PURPLE, DARK_PURPLE, (5, GRID_COUNT-6))
+        ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-6, 5))
     ]
     all_snakes = [player_snake] + ai_snakes
 
@@ -480,8 +482,7 @@ def ai_mode():
                         player_snake.reset()
                         ai_snakes = [
                             ComputerSnake(BLUE, DARK_BLUE, (5, 5)),
-                            ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-6, 5)),
-                            ComputerSnake(PURPLE, DARK_PURPLE, (5, GRID_COUNT-6))
+                            ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-6, 5))
                         ]
                         all_snakes = [player_snake] + ai_snakes
                         food.randomize_position(all_snakes)
@@ -539,8 +540,7 @@ def ai_mode():
                 if len(ai_snakes) == 0:
                     ai_snakes = [
                         ComputerSnake(BLUE, DARK_BLUE, (5, 5)),
-                        ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-6, 5)),
-                        ComputerSnake(PURPLE, DARK_PURPLE, (5, GRID_COUNT-6))
+                        ComputerSnake(YELLOW, DARK_YELLOW, (GRID_COUNT-6, 5))
                     ]
                     all_snakes = [player_snake] + ai_snakes
 
@@ -593,6 +593,9 @@ def main():
                     single_player_mode()
                 elif event.key == pygame.K_2:
                     ai_mode()
+                elif event.key == pygame.K_3:
+                    import main_neon
+                    main_neon.neon_single_player(screen, clock)
                 elif event.key == pygame.K_q:
                     pygame.quit()
                     sys.exit()

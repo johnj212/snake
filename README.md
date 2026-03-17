@@ -24,7 +24,7 @@ An enhanced Snake game implementation using Python and Pygame. Challenge yoursel
 
 ### Multiplayer Action
 - **Player Snake**: Green snake controlled by you
-- **AI Opponents**: 3 computer-controlled snakes (Blue, Yellow, Purple)
+- **AI Opponents**: 2 computer-controlled snakes (Blue, Yellow)
 - **Competitive Gameplay**: All snakes compete for the same food
 - **Smart AI**: Computer snakes actively seek food while avoiding collisions
 
@@ -37,7 +37,7 @@ An enhanced Snake game implementation using Python and Pygame. Challenge yoursel
 ## 📋 Requirements
 
 - Python 3.x
-- Pygame 2.5.2+
+- Pygame 2.6.1+
 
 ## 🚀 Installation
 
@@ -108,7 +108,7 @@ Choose from two exciting game modes:
 - Perfect for practicing and beating high scores
 
 #### 🔵 **2 - Play Against Computer**
-- Compete against 3 AI-controlled snakes
+- Compete against 2 AI-controlled snakes
 - All snakes fight for the same food
 - Strategic gameplay with collision risks
 - AI snakes respawn when eliminated

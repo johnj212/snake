@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Snake</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: monospace;
+  }
+  canvas { display: block; }
+  #main { position: relative; }
+</style>
+</head>
+<body>
+<div id="main">
+  <canvas id="canvas"></canvas>
+</div>
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────────
+const GRID = 20, COLS = 25, ROWS = 25;
+const W = GRID * COLS, H = GRID * ROWS;
+const TICK_PLAYER = 100;   // ms between player moves
+const TICK_AI     = 167;   // ms between AI moves
+const TRAIL_MAX   = 15;
+const PARTICLE_COUNT = 18;
+
+// ── Neon Palette ───────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#05050f',
+  player:     '#00e5ff',
+  playerHead: '#b4ffff',
+  ai1:        '#ff00c8',
+  ai1Head:    '#ff8ce6',
+  ai2:        '#ff6400',
+  ai2Head:    '#ffc864',
+  food:       '#ffffc8',
+  gameOver:   '#ff1e50',
+  grid:       'rgba(0,80,120,0.14)',
+  ui:         '#6464a0',
+};
+
+// ── Canvas Setup ───────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+canvas.width  = W;
+canvas.height = H;
+const mainCtx = canvas.getContext('2d');
+
+// Offscreen canvases
+const gameCanvas = document.createElement('canvas');
+gameCanvas.width = W; gameCanvas.height = H;
+const gameCtx = gameCanvas.getContext('2d');
+
+const gridCanvas = document.createElement('canvas');
+gridCanvas.width = W; gridCanvas.height = H;
+const gridCtx = gridCanvas.getContext('2d');
+
+const scanlineCanvas = document.createElement('canvas');
+scanlineCanvas.width = W; scanlineCanvas.height = H;
+const scanCtx = scanlineCanvas.getContext('2d');
+
+// ── Pre-build static canvases ──────────────────────────────────────────────────
+function buildGrid() {
+  gridCtx.clearRect(0, 0, W, H);
+  gridCtx.strokeStyle = C.grid;
+  gridCtx.lineWidth = 1;
+  for (let x = 0; x <= W; x += GRID) {
+    gridCtx.globalAlpha = (x % 100 === 0) ? 0.22 : 0.14;
+    gridCtx.beginPath();
+    gridCtx.moveTo(x, 0);
+    gridCtx.lineTo(x, H);
+    gridCtx.stroke();
+  }
+  for (let y = 0; y <= H; y += GRID) {
+    gridCtx.globalAlpha = (y % 100 === 0) ? 0.22 : 0.14;
+    gridCtx.beginPath();
+    gridCtx.moveTo(0, y);
+    gridCtx.lineTo(W, y);
+    gridCtx.stroke();
+  }
+  gridCtx.globalAlpha = 1;
+}
+
+function buildScanlines() {
+  scanCtx.clearRect(0, 0, W, H);
+  scanCtx.fillStyle = 'rgba(0,0,0,0.07)';
+  for (let y = 0; y < H; y += 2) {
+    scanCtx.fillRect(0, y, W, 1);
+  }
+}
+
+buildGrid();
+buildScanlines();
+
+// ── Drawing helpers ────────────────────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawGlowRect(ctx, gx, gy, color, shadowBlur = 18) {
+  const x = gx * GRID + 1, y = gy * GRID + 1;
+  const s = GRID - 2;
+  ctx.save();
+  ctx.shadowBlur  = shadowBlur;
+  ctx.shadowColor = color;
+  ctx.fillStyle   = color;
+  roundRect(ctx, x, y, s, s, 5);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawGlowText(ctx, text, x, y, color, size = 30) {
+  ctx.save();
+  ctx.font        = `bold ${size}px monospace`;
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur  = 18;
+  ctx.shadowColor = color;
+  ctx.fillStyle   = color;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Snake logic ────────────────────────────────────────────────────────────────
+function makeSnake(sx, sy) {
+  return {
+    positions: [[sx, sy]],
+    dir:       [1, 0],
+    length:    1,
+    score:     0,
+    alive:     true,
+  };
+}
+
+function snakeMove(snake, allSnakes) {
+  const [hx, hy] = snake.positions[0];
+  const [dx, dy] = snake.dir;
+  const nx = hx + dx, ny = hy + dy;
+
+  if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return false;
+  // Self collision (skip first 3 to allow tight turns)
+  for (let i = 3; i < snake.positions.length; i++) {
+    if (snake.positions[i][0] === nx && snake.positions[i][1] === ny) return false;
+  }
+  // Other snakes
+  for (const other of allSnakes) {
+    if (other === snake) continue;
+    for (const [ox, oy] of other.positions) {
+      if (ox === nx && oy === ny) return false;
+    }
+  }
+
+  snake.positions.unshift([nx, ny]);
+  if (snake.positions.length > snake.length) {
+    snake.positions.pop();
+  }
+  return true;
+}
+
+function aiChooseDir(snake, foodPos, allSnakes) {
+  const [hx, hy] = snake.positions[0];
+  const [fx, fy] = foodPos;
+  const [cdx, cdy] = snake.dir;
+
+  const occupied = new Set();
+  for (const s of allSnakes) {
+    if (s === snake) continue;
+    for (const [px, py] of s.positions) occupied.add(`${px},${py}`);
+  }
+  const selfSet = new Set(snake.positions.slice(1).map(([x,y]) => `${x},${y}`));
+
+  const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+  const candidates = dirs.filter(([dx, dy]) => {
+    if (dx === -cdx && dy === -cdy) return false; // no reverse
+    const nx = hx + dx, ny = hy + dy;
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return false;
+    if (occupied.has(`${nx},${ny}`)) return false;
+    if (selfSet.has(`${nx},${ny}`)) return false;
+    return true;
+  });
+
+  if (candidates.length === 0) return;
+
+  candidates.sort((a, b) => {
+    const da = Math.abs(hx + a[0] - fx) + Math.abs(hy + a[1] - fy);
+    const db = Math.abs(hx + b[0] - fx) + Math.abs(hy + b[1] - fy);
+    return da - db;
+  });
+  snake.dir = candidates[0];
+}
+
+// ── Food ───────────────────────────────────────────────────────────────────────
+function randomFood(snakes) {
+  const occupied = new Set();
+  for (const s of snakes) {
+    for (const [x, y] of s.positions) occupied.add(`${x},${y}`);
+  }
+  for (let tries = 0; tries < 200; tries++) {
+    const x = Math.floor(Math.random() * COLS);
+    const y = Math.floor(Math.random() * ROWS);
+    if (!occupied.has(`${x},${y}`)) return [x, y];
+  }
+  return [Math.floor(Math.random() * COLS), Math.floor(Math.random() * ROWS)];
+}
+
+// ── Trail ──────────────────────────────────────────────────────────────────────
+function makeTrail() {
+  return [];  // [{pos:[x,y], alpha:float}]
+}
+
+function trailRecord(trail, pos) {
+  trail.unshift({ pos: [...pos], alpha: 0.63 });
+  if (trail.length > TRAIL_MAX) trail.pop();
+}
+
+function trailFade(trail) {
+  for (const seg of trail) {
+    seg.alpha = Math.max(0, seg.alpha - 0.025);
+  }
+}
+
+function drawTrail(ctx, trail, color) {
+  for (const { pos: [gx, gy], alpha } of trail) {
+    if (alpha <= 0) continue;
+    const x = gx * GRID + 2, y = gy * GRID + 2, s = GRID - 4;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.shadowBlur  = 10;
+    ctx.shadowColor = color;
+    ctx.lineWidth   = 1.5;
+    roundRect(ctx, x, y, s, s, 4);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── Particles ──────────────────────────────────────────────────────────────────
+function spawnParticles(particles, gx, gy, color) {
+  const px = gx * GRID + GRID / 2;
+  const py = gy * GRID + GRID / 2;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.5 + Math.random() * 3;
+    const life  = 20 + Math.floor(Math.random() * 20);
+    particles.push({
+      x: px, y: py,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      r: 2 + Math.random() * 3,
+      life, maxLife: life,
+      color,
+    });
+  }
+}
+
+function updateParticles(particles) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x     += p.vx;
+    p.y     += p.vy;
+    p.vx    *= 0.93;
+    p.vy    *= 0.93;
+    p.alpha  = p.life / p.maxLife;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles(ctx, particles) {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.shadowBlur  = 8;
+    ctx.shadowColor = p.color;
+    ctx.fillStyle   = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── Render pipeline ────────────────────────────────────────────────────────────
+function renderFrame(state) {
+  // 1. Background
+  mainCtx.fillStyle = C.bg;
+  mainCtx.fillRect(0, 0, W, H);
+
+  // 2. Grid
+  mainCtx.globalAlpha = 1;
+  mainCtx.drawImage(gridCanvas, 0, 0);
+
+  // 3. Game elements onto offscreen gameCanvas
+  gameCtx.clearRect(0, 0, W, H);
+
+  // Trails
+  drawTrail(gameCtx, state.playerTrail, C.player);
+  if (state.mode === 'ai') {
+    for (let i = 0; i < state.aiSnakes.length; i++) {
+      drawTrail(gameCtx, state.aiTrails[i], state.aiColors[i]);
+    }
+  }
+
+  // Snakes
+  drawSnake(gameCtx, state.player, C.player, C.playerHead);
+  if (state.mode === 'ai') {
+    for (let i = 0; i < state.aiSnakes.length; i++) {
+      drawSnake(gameCtx, state.aiSnakes[i], state.aiColors[i], state.aiHeadColors[i]);
+    }
+  }
+
+  // Food
+  drawFood(gameCtx, state.food);
+
+  // Particles
+  drawParticles(gameCtx, state.particles);
+
+  // 4. Sharp game layer
+  mainCtx.globalAlpha = 1;
+  mainCtx.drawImage(gameCanvas, 0, 0);
+
+  // 5. Bloom pass — blur + screen blend
+  mainCtx.save();
+  mainCtx.filter = 'blur(8px)';
+  mainCtx.globalCompositeOperation = 'screen';
+  mainCtx.globalAlpha = 0.55;
+  mainCtx.drawImage(gameCanvas, 0, 0);
+  mainCtx.restore();
+
+  // 6. HUD
+  drawHUD(mainCtx, state);
+
+  // 7. CRT scanlines
+  mainCtx.globalAlpha = 1;
+  mainCtx.globalCompositeOperation = 'source-over';
+  mainCtx.drawImage(scanlineCanvas, 0, 0);
+}
+
+function drawSnake(ctx, snake, bodyColor, headColor) {
+  for (let i = snake.positions.length - 1; i >= 0; i--) {
+    const [gx, gy] = snake.positions[i];
+    drawGlowRect(ctx, gx, gy, i === 0 ? headColor : bodyColor, i === 0 ? 22 : 14);
+  }
+}
+
+function drawFood(ctx, food) {
+  const [gx, gy] = food;
+  const t = Date.now() / 1000;
+  const pulse = Math.sin(t * Math.PI * 2);
+  const r = GRID / 2 - 2 + pulse * 3;
+  const bright = Math.floor(200 + pulse * 30);
+  const cx = gx * GRID + GRID / 2;
+  const cy = gy * GRID + GRID / 2;
+
+  ctx.save();
+  ctx.shadowBlur  = 22 + pulse * 6;
+  ctx.shadowColor = C.food;
+  ctx.fillStyle   = `rgb(${bright},${bright},${Math.floor(bright * 0.7)})`;
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.max(2, r), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHUD(ctx, state) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Score
+  drawGlowText(ctx, `Score: ${state.player.score}`, 60, 16, C.player, 20);
+
+  if (state.mode === 'ai') {
+    drawGlowText(ctx, `AI alive: ${state.aiSnakes.length}`, W - 70, 16, C.ui, 18);
+  }
+
+  // Bottom hint
+  drawGlowText(ctx, 'P: Pause   ESC: Menu', W / 2, H - 14, C.ui, 16);
+
+  ctx.restore();
+}
+
+// ── Screens ────────────────────────────────────────────────────────────────────
+function renderMenu() {
+  mainCtx.fillStyle = C.bg;
+  mainCtx.fillRect(0, 0, W, H);
+  mainCtx.drawImage(gridCanvas, 0, 0);
+  mainCtx.drawImage(scanlineCanvas, 0, 0);
+
+  drawGlowText(mainCtx, 'NEON SNAKE', W / 2, 110, C.player, 58);
+  drawGlowText(mainCtx, 'Choose Game Mode', W / 2, 185, '#c8c8ff', 28);
+  drawGlowText(mainCtx, '1 — Single Player', W / 2, 240, C.player, 26);
+  drawGlowText(mainCtx, '2 — Vs AI', W / 2, 280, C.ai1, 26);
+  drawGlowText(mainCtx, 'Q — Quit', W / 2, 345, C.ui, 22);
+}
+
+function renderGameOver(score) {
+  // Dim overlay
+  mainCtx.save();
+  mainCtx.fillStyle = 'rgba(5,5,15,0.55)';
+  mainCtx.fillRect(0, 0, W, H);
+  mainCtx.restore();
+
+  drawGlowText(mainCtx, 'GAME  OVER', W / 2, H / 2 - 52, C.gameOver, 52);
+  drawGlowText(mainCtx, `Score: ${score}`, W / 2, H / 2 + 4, '#ffc8c8', 30);
+  drawGlowText(mainCtx, 'SPACE — restart   ESC — menu', W / 2, H / 2 + 52, C.ui, 18);
+}
+
+function renderPause() {
+  mainCtx.save();
+  mainCtx.fillStyle = 'rgba(5,5,15,0.5)';
+  mainCtx.fillRect(0, 0, W, H);
+  mainCtx.restore();
+
+  drawGlowText(mainCtx, 'PAUSED', W / 2, H / 2 - 20, C.player, 52);
+  drawGlowText(mainCtx, 'P — continue', W / 2, H / 2 + 38, C.ui, 22);
+}
+
+// ── Game State ─────────────────────────────────────────────────────────────────
+let screen = 'menu';   // 'menu' | 'game' | 'over' | 'pause'
+let state  = null;
+
+function initGame(mode) {
+  const midX = Math.floor(COLS / 2), midY = Math.floor(ROWS / 2);
+  const player = makeSnake(midX, midY);
+  player.dir = [[1,0],[0,1],[-1,0],[0,-1]][Math.floor(Math.random() * 4)];
+
+  const aiSnakes      = [];
+  const aiTrails      = [];
+  const aiColors      = [C.ai1, C.ai2];
+  const aiHeadColors  = [C.ai1Head, C.ai2Head];
+
+  if (mode === 'ai') {
+    const a1 = makeSnake(4, 4);             a1.dir = [1, 0];
+    const a2 = makeSnake(COLS - 5, 4);     a2.dir = [-1, 0];
+    aiSnakes.push(a1, a2);
+    aiTrails.push(makeTrail(), makeTrail());
+  }
+
+  const allSnakes = [player, ...aiSnakes];
+  const food = randomFood(allSnakes);
+
+  return {
+    mode,
+    player,
+    playerTrail: makeTrail(),
+    aiSnakes,
+    aiTrails,
+    aiColors,
+    aiHeadColors,
+    food,
+    particles: [],
+    paused:    false,
+    over:      false,
+    lastPlayerTick: Date.now(),
+    lastAiTick:     Date.now(),
+  };
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (screen === 'menu') {
+    if (e.key === '1') { state = initGame('single'); screen = 'game'; }
+    if (e.key === '2') { state = initGame('ai');     screen = 'game'; }
+    if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
+      renderMenu();  // just stays on menu
+    }
+    return;
+  }
+
+  if (screen === 'game' || screen === 'pause') {
+    if (state.over) {
+      if (e.key === ' ') { state = initGame(state.mode); }
+      if (e.key === 'Escape') { screen = 'menu'; }
+      return;
+    }
+
+    if (e.key === 'p' || e.key === 'P') {
+      state.paused = !state.paused;
+      return;
+    }
+    if (e.key === 'Escape') { screen = 'menu'; return; }
+
+    if (!state.paused) {
+      const d = state.player.dir;
+      if ((e.key === 'ArrowUp'    || e.key === 'w') && d[1] !== 1)  state.player.dir = [0, -1];
+      if ((e.key === 'ArrowDown'  || e.key === 's') && d[1] !== -1) state.player.dir = [0,  1];
+      if ((e.key === 'ArrowLeft'  || e.key === 'a') && d[0] !== 1)  state.player.dir = [-1, 0];
+      if ((e.key === 'ArrowRight' || e.key === 'd') && d[0] !== -1) state.player.dir = [1,  0];
+    }
+  }
+});
+
+// ── Main Loop ──────────────────────────────────────────────────────────────────
+function tick() {
+  if (screen === 'menu') {
+    renderMenu();
+    requestAnimationFrame(tick);
+    return;
+  }
+
+  if (!state) { requestAnimationFrame(tick); return; }
+
+  const now = Date.now();
+
+  if (!state.paused && !state.over) {
+    const allSnakes = [state.player, ...state.aiSnakes];
+
+    // Player tick
+    if (now - state.lastPlayerTick >= TICK_PLAYER) {
+      state.lastPlayerTick = now;
+      trailRecord(state.playerTrail, state.player.positions[0]);
+      const survived = snakeMove(state.player, allSnakes);
+      if (!survived) {
+        spawnParticles(state.particles, state.player.positions[0][0], state.player.positions[0][1], C.player);
+        state.over = true;
+      } else {
+        // Check food
+        const [hx, hy] = state.player.positions[0];
+        if (hx === state.food[0] && hy === state.food[1]) {
+          state.player.length++;
+          state.player.score++;
+          state.food = randomFood(allSnakes);
+        }
+      }
+    }
+
+    // AI tick
+    if (state.mode === 'ai' && now - state.lastAiTick >= TICK_AI) {
+      state.lastAiTick = now;
+
+      for (let i = state.aiSnakes.length - 1; i >= 0; i--) {
+        const ai = state.aiSnakes[i];
+        aiChooseDir(ai, state.food, allSnakes);
+        trailRecord(state.aiTrails[i], ai.positions[0]);
+        const survived = snakeMove(ai, allSnakes);
+        if (!survived) {
+          spawnParticles(state.particles, ai.positions[0][0], ai.positions[0][1], state.aiColors[i]);
+          state.aiSnakes.splice(i, 1);
+          state.aiTrails.splice(i, 1);
+          state.aiColors.splice(i, 1);
+          state.aiHeadColors.splice(i, 1);
+        } else {
+          // Check if AI ate food
+          const [ax, ay] = ai.positions[0];
+          if (ax === state.food[0] && ay === state.food[1]) {
+            ai.length++;
+            state.food = randomFood([state.player, ...state.aiSnakes]);
+          }
+        }
+      }
+
+      // Respawn AI if all dead
+      if (state.aiSnakes.length === 0) {
+        const a1 = makeSnake(4, 4);             a1.dir = [1, 0];
+        const a2 = makeSnake(COLS - 5, 4);     a2.dir = [-1, 0];
+        state.aiSnakes.push(a1, a2);
+        state.aiTrails.push(makeTrail(), makeTrail());
+        state.aiColors.push(C.ai1, C.ai2);
+        state.aiHeadColors.push(C.ai1Head, C.ai2Head);
+      }
+    }
+  }
+
+  // Always fade trails and update particles
+  trailFade(state.playerTrail);
+  for (const t of state.aiTrails) trailFade(t);
+  updateParticles(state.particles);
+
+  // Render
+  renderFrame(state);
+  if (state.over)   renderGameOver(state.player.score);
+  if (state.paused) renderPause();
+
+  requestAnimationFrame(tick);
+}
+
+// ── Start ──────────────────────────────────────────────────────────────────────
+renderMenu();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

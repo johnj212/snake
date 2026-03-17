@@ -36,7 +36,7 @@ echo.
 
 REM Install pygame
 echo Installing pygame...
-pip install pygame==2.5.2
+pip install pygame==2.6.1
 if %errorlevel% neq 0 (
     echo WARNING: Failed to install specific pygame version, trying latest...
     pip install pygame
@@ -61,7 +61,7 @@ echo   python main.py
 echo.
 echo Game Features:
 echo   - Single Player: Classic Snake gameplay
-echo   - AI Mode: Play against 3 computer opponents
+echo   - AI Mode: Play against 2 computer opponents
 echo   - Balanced gameplay with strategic advantages
 echo.
 echo Controls:
